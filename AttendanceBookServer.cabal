@@ -34,7 +34,8 @@ Executable AttendanceBookServer
     time,
     xmlhtml,
     mysql-simple,
-    transformers
+    transformers,
+    aeson
 
   if flag(old-base)
     build-depends:

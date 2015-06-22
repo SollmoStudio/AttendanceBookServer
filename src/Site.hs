@@ -11,7 +11,10 @@ module Site
 ------------------------------------------------------------------------------
 import Control.Applicative
 import Control.Monad.IO.Class
+import Data.Aeson.Types
+import Data.Aeson.Encode
 import Data.ByteString (ByteString)
+import qualified Data.ByteString.Lazy as B
 import Data.Monoid
 import qualified Data.Text as T
 import Database.MySQL.Simple
@@ -21,6 +24,9 @@ import Snap.Snaplet.Session.Backends.CookieSession
 import Snap.Util.FileServe
 ------------------------------------------------------------------------------
 import Application
+
+successResult :: (ToJSON r) => T.Text -> r -> ByteString
+successResult status result = B.toStrict $ encode $ object [ "status" .= status, "result" .= result ]
 
 handleHello :: Handler App App ()
 handleHello = writeText "Hi"
@@ -34,7 +40,7 @@ handleMakeUser = method POST $ do
     "INSERT  attendance.user SET " `mappend`
     "  email=?, password=?"
     ) (email, password)
-  writeBS $ "ok"
+  writeBS $ successResult "ok" emptyArray
 
 routes :: [(ByteString, Handler App App ())]
 routes = [ ("/hello", handleHello)
