@@ -24,6 +24,7 @@ import Snap.Snaplet.Session.Backends.CookieSession
 import Snap.Util.FileServe
 ------------------------------------------------------------------------------
 import Application
+import Config
 
 successResult :: (ToJSON r) => T.Text -> r -> ByteString
 successResult status result = B.toStrict $ encode $ object [ "status" .= status, "result" .= result ]
@@ -35,7 +36,7 @@ handleMakeUser :: Handler App App ()
 handleMakeUser = method POST $ do
   email <- getParam "email"
   password <- getParam "password"
-  conn <- liftIO $ connect defaultConnectInfo
+  conn <- liftIO $ connect mysqlConnectInfo
   liftIO $ execute conn (
     "INSERT  attendance.user SET " `mappend`
     "  email=?, password=?"
