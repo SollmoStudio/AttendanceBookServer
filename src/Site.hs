@@ -17,9 +17,11 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString.Lazy as B
 import Data.Monoid
 import qualified Data.Text as T
+import Data.Text.Encoding
 import Database.MySQL.Simple
 import Snap.Core
 import Snap.Snaplet
+import Snap.Snaplet.Session
 import Snap.Snaplet.Session.Backends.CookieSession
 import Snap.Util.FileServe
 ------------------------------------------------------------------------------
@@ -28,6 +30,9 @@ import Config
 
 successResult :: (ToJSON r) => T.Text -> r -> ByteString
 successResult status result = B.toStrict $ encode $ object [ "status" .= status, "result" .= result ]
+
+failResult :: T.Text -> ByteString
+failResult errorMsg = B.toStrict $ encode $ object [ "status" .= errorMsg, "result" .= emptyArray ]
 
 handleHello :: Handler App App ()
 handleHello = writeText "Hi"
@@ -43,9 +48,44 @@ handleMakeUser = method POST $ do
     ) (email, password)
   writeBS $ successResult "ok" emptyArray
 
+validUser :: Handler App App Bool
+validUser = do
+  email <- getParam "email"
+  password <- getParam "password"
+  conn <- liftIO $ connect mysqlConnectInfo
+  [Only count] <- liftIO $ query conn (
+    "SELECT count(*) FROM attendance.user" `mappend`
+    " WHERE email=? AND password=?"
+    ) (email, password)
+  case (count :: Int) of
+    0 -> return False
+    _ -> return True
+
+saveLoginToSession :: Handler App App ()
+saveLoginToSession = do
+  (Just email) <- getParam "email"
+  let emailBS = decodeUtf8 email
+  with sess $ setInSession "email" emailBS
+  with sess $ commitSession
+
+handleLogin :: Handler App App ()
+handleLogin = method POST $ do
+  isValid <- validUser
+  case isValid of
+    False -> writeBS $ failResult "fail"
+    True -> saveLoginToSession >> (writeBS $ successResult "ok" emptyArray)
+
+handleLogout :: Handler App App ()
+handleLogout = method POST $ do
+  with sess $ resetSession
+  with sess $ commitSession
+  writeBS $ successResult "ok" emptyArray
+
 routes :: [(ByteString, Handler App App ())]
 routes = [ ("/hello", handleHello)
          , ("/makeUser", handleMakeUser)
+         , ("/login", handleLogin)
+         , ("/logout", handleLogout)
          , ("", serveDirectory "static")
          ]
 
