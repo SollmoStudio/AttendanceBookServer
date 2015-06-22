@@ -110,6 +110,11 @@ checkLogin = do
   logined <- isLogin
   if logined then pass else writeBS $ failResult "NotLogin"
 
+handleGetEmail :: Handler App App ()
+handleGetEmail = checkLogin <|> do
+  (Just email) <- with sess $ getFromSession "email"
+  writeBS $ successResult "ok" [email]
+
 postAttend :: Handler App App ()
 postAttend = method POST $ do
   conn <- liftIO $ connect mysqlConnectInfo
@@ -159,6 +164,7 @@ routes = [ ("/hello", handleHello)
          , ("/login", handleLogin)
          , ("/logout", handleLogout)
          , ("/isLogin", handleIsLogin)
+         , ("/getEmail", handleGetEmail)
          , ("/attend", handleAttend)
          , ("/attends", handleAttends)
          , ("", serveDirectory "static")
