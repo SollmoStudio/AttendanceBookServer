@@ -15,6 +15,7 @@ import Data.Aeson.Types
 import Data.Aeson.Encode
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Lazy as B
+import Data.Foldable
 import Data.Monoid
 import qualified Data.Text as T
 import Data.Text.Encoding
