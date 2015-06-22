@@ -1,0 +1,3 @@
+[submodule "static/AttendanceBookClient"]
+	path = static/AttendanceBookClient
+	url = git@github.com:SollmoStudio/AttendanceBookClient.git
