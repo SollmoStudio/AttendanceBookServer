@@ -18,6 +18,7 @@ import qualified Data.ByteString.Lazy as B
 import Data.Monoid
 import qualified Data.Text as T
 import Data.Text.Encoding
+import Data.Time.Clock
 import Database.MySQL.Simple
 import Snap.Core
 import Snap.Snaplet
@@ -81,11 +82,68 @@ handleLogout = method POST $ do
   with sess $ commitSession
   writeBS $ successResult "ok" emptyArray
 
+existUser :: T.Text -> Handler App App Bool
+existUser email = do
+  conn <- liftIO $ connect mysqlConnectInfo
+  [Only count] <- liftIO $ query conn (
+    "SELECT count(*) FROM attendance.user" `mappend`
+    " WHERE email=?"
+    ) (Only email)
+  case (count :: Int) of
+    0 -> return False
+    _ -> return True
+
+isLogin :: Handler App App Bool
+isLogin = do
+  maybeEmail <- with sess $ getFromSession "email"
+  ret <- maybe (return False) existUser maybeEmail
+  return ret
+
+checkLogin :: Handler App App ()
+checkLogin = do
+  logined <- isLogin
+  if logined then pass else writeBS $ failResult "NotLogin"
+
+postAttend :: Handler App App ()
+postAttend = method POST $ do
+  conn <- liftIO $ connect mysqlConnectInfo
+  (Just email) <- with sess $ getFromSession "email"
+  liftIO $ execute conn (
+    "insert  attendance.attendance SET " `mappend`
+    "  email=?"
+    ) (Only email)
+  writeBS $ successResult "ok" emptyArray
+
+newtype AttendanceResult = AttendanceResult [(T.Text, UTCTime)]
+  deriving Show
+
+fromSingle :: (T.Text, UTCTime) -> AttendanceResult
+fromSingle x = AttendanceResult [x]
+
+instance Monoid AttendanceResult where
+  mempty = AttendanceResult []
+  mappend (AttendanceResult xs) (AttendanceResult ys) = AttendanceResult (xs `mappend` ys)
+
+getAttend :: Handler App App ()
+getAttend = method GET $ do
+  conn <- liftIO $ connect mysqlConnectInfo
+  (Just email) <- with sess $ getFromSession "email"
+  attendances <- liftIO $ query conn (
+       "select email, attendanceTime from attendance.attendance WHERE " `mappend`
+       "  email=?"
+     ) (Only email)
+  let AttendanceResult results = foldMap fromSingle attendances
+  writeBS $ successResult "ok" results
+
+handleAttend :: Handler App App ()
+handleAttend = checkLogin <|> (postAttend <|> getAttend)
+
 routes :: [(ByteString, Handler App App ())]
 routes = [ ("/hello", handleHello)
          , ("/makeUser", handleMakeUser)
          , ("/login", handleLogin)
          , ("/logout", handleLogout)
+         , ("/attend", handleAttend)
          , ("", serveDirectory "static")
          ]
 
