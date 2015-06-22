@@ -144,7 +144,7 @@ getAttend = method GET $ do
        "  email=?"
      ) (Only email)
   let AttendanceResult results = foldMap fromSingle attendances
-  writeBS $ successResult "ok" results
+  writeBS $ successResult "ok" (map snd results)
 
 handleAttend :: Handler App App ()
 handleAttend = checkLogin <|> (postAttend <|> getAttend)
