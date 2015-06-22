@@ -32,7 +32,9 @@ Executable AttendanceBookServer
     snap-loader-static,
     text,
     time,
-    xmlhtml
+    xmlhtml,
+    mysql-simple,
+    transformers
 
   if flag(old-base)
     build-depends:
