@@ -23,26 +23,25 @@ Executable AttendanceBookServer
   main-is: Main.hs
 
   Build-depends:
-    bytestring                >= 0.9.1   && < 0.11,
-    heist                     >= 0.14    && < 0.15,
-    MonadCatchIO-transformers >= 0.2.1   && < 0.4,
-    mtl                       >= 2       && < 3,
-    snap                      >= 0.13    && < 0.15,
-    snap-core                 >= 0.9     && < 0.10,
-    snap-server               >= 0.9     && < 0.10,
-    snap-loader-static        >= 0.9     && < 0.10,
-    text                      >= 0.11    && < 1.3,
-    time                      >= 1.1     && < 1.6,
-    xmlhtml                   >= 0.1     && < 0.3
+    bytestring,
+    MonadCatchIO-transformers,
+    mtl,
+    snap,
+    snap-core,
+    snap-server,
+    snap-loader-static,
+    text,
+    time,
+    xmlhtml
 
   if flag(old-base)
     build-depends:
-      base                      >= 4        && < 4.4,
-      lens                      >= 3.7.6    && < 3.8
+      base,
+      lens
   else
     build-depends:
-      base                      >= 4.4      && < 5,
-      lens                      >= 3.7.6    && < 4.12
+      base,
+      lens
 
   if flag(development)
     build-depends:
