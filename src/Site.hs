@@ -99,6 +99,11 @@ isLogin = do
   ret <- maybe (return False) existUser maybeEmail
   return ret
 
+handleIsLogin :: Handler App App ()
+handleIsLogin = do
+  logined <- isLogin
+  writeBS $ successResult "ok" [logined]
+
 checkLogin :: Handler App App ()
 checkLogin = do
   logined <- isLogin
@@ -152,6 +157,7 @@ routes = [ ("/hello", handleHello)
          , ("/makeUser", handleMakeUser)
          , ("/login", handleLogin)
          , ("/logout", handleLogout)
+         , ("/isLogin", handleIsLogin)
          , ("/attend", handleAttend)
          , ("/attends", handleAttends)
          , ("", serveDirectory "static")
