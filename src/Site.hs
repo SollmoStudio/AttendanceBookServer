@@ -138,12 +138,22 @@ getAttend = method GET $ do
 handleAttend :: Handler App App ()
 handleAttend = checkLogin <|> (postAttend <|> getAttend)
 
+handleAttends :: Handler App App ()
+handleAttends = do
+  conn <- liftIO $ connect mysqlConnectInfo
+  attendances <- liftIO $ query_ conn (
+    "select email, attendanceTime from attendance.attendance"
+    )
+  let AttendanceResult results = foldMap fromSingle attendances
+  writeBS $ successResult "ok" results
+
 routes :: [(ByteString, Handler App App ())]
 routes = [ ("/hello", handleHello)
          , ("/makeUser", handleMakeUser)
          , ("/login", handleLogin)
          , ("/logout", handleLogout)
          , ("/attend", handleAttend)
+         , ("/attends", handleAttends)
          , ("", serveDirectory "static")
          ]
 
