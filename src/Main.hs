@@ -31,6 +31,7 @@ import           Snap.Loader.Dynamic
 import           Snap.Loader.Static
 #endif
 
+import Config
 
 ------------------------------------------------------------------------------
 -- | This is the entry point for this web server application. It supports
@@ -91,7 +92,7 @@ main = do
 -- This action is only run once, regardless of whether development or
 -- production mode is in use.
 getConf :: IO (Config Snap AppConfig)
-getConf = commandLineAppConfig defaultConfig
+getConf = commandLineAppConfig $ setPort port defaultConfig
 
 
 ------------------------------------------------------------------------------
