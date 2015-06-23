@@ -20,6 +20,7 @@ import Data.Monoid
 import qualified Data.Text as T
 import Data.Text.Encoding
 import Data.Time.Clock
+import Data.Time.LocalTime
 import Database.MySQL.Simple
 import Snap.Core
 import Snap.Snaplet
@@ -125,15 +126,31 @@ postAttend = method POST $ do
     ) (Only email)
   writeBS $ successResult "ok" emptyArray
 
-newtype AttendanceResult = AttendanceResult [(T.Text, UTCTime)]
+fixTimeZone :: UTCTime -> IO UTCTime
+fixTimeZone (UTCTime day time) = (localTimeToUTC `fmap` currentTimeZone) <*> (return localTime)
+  where
+    localTime = LocalTime day (timeToTimeOfDay time)
+    currentTimeZone = getCurrentTimeZone
+
+newtype TimeZoneRemovedTime = TimeZoneRemovedTime UTCTime
+  deriving Show
+
+newtype AttendanceResult = AttendanceResult [(T.Text, TimeZoneRemovedTime)]
   deriving Show
 
 fromSingle :: (T.Text, UTCTime) -> AttendanceResult
-fromSingle x = AttendanceResult [x]
+fromSingle (email, noTimeZoneTime) = AttendanceResult [(email, (TimeZoneRemovedTime noTimeZoneTime))]
 
 instance Monoid AttendanceResult where
   mempty = AttendanceResult []
   mappend (AttendanceResult xs) (AttendanceResult ys) = AttendanceResult (xs `mappend` ys)
+
+makeCorrectTimeZone :: AttendanceResult -> IO [(T.Text, UTCTime)]
+makeCorrectTimeZone (AttendanceResult rows) = mapM convert rows
+  where
+    convert = \(email, TimeZoneRemovedTime time) -> do
+      validTime <- fixTimeZone time
+      return (email, validTime)
 
 getAttend :: Handler App App ()
 getAttend = method GET $ do
@@ -143,7 +160,7 @@ getAttend = method GET $ do
        "select email, attendanceTime from attendance.attendance WHERE " `mappend`
        "  email=?"
      ) (Only email)
-  let AttendanceResult results = foldMap fromSingle attendances
+  results <- liftIO $ makeCorrectTimeZone $ foldMap fromSingle attendances
   writeBS $ successResult "ok" (map snd results)
 
 handleAttend :: Handler App App ()
@@ -155,7 +172,7 @@ handleAttends = do
   attendances <- liftIO $ query_ conn (
     "select email, attendanceTime from attendance.attendance"
     )
-  let AttendanceResult results = foldMap fromSingle attendances
+  results <- liftIO $ makeCorrectTimeZone $ foldMap fromSingle attendances
   writeBS $ successResult "ok" results
 
 routes :: [(ByteString, Handler App App ())]
