@@ -10,3 +10,6 @@ mysqlConnectInfo = defaultConnectInfo {
     connectPassword = "attendance",
     connectDatabase = "attendance"
   }
+
+port :: Int
+port = 80
