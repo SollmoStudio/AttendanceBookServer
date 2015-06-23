@@ -12,4 +12,4 @@ mysqlConnectInfo = defaultConnectInfo {
   }
 
 port :: Int
-port = 80
+port = 8000
