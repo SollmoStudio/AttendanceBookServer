@@ -3,6 +3,7 @@ USE attendance;
 
 CREATE TABLE `user` (
   `email` varchar(90) NOT NULL,
+  `name` varchar(90) NOT NULL,
   `password` varchar(90) NOT NULL,
   UNIQUE KEY (email)
 ) ENGINE=InnoDB;
