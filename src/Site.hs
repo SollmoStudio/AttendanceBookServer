@@ -117,6 +117,16 @@ handleGetEmail = checkLogin <|> do
   (Just email) <- with sess $ getFromSession "email"
   writeBS $ successResult "ok" [email]
 
+handleGetName :: Handler App App ()
+handleGetName = checkLogin <|> do
+  (Just email) <- with sess $ getFromSession "email"
+  conn <- liftIO $ connect mysqlConnectInfo
+  [Only name] <- liftIO $ query conn (
+    "SELECT name FROM attendance.user" `mappend`
+    " WHERE email=?"
+    ) (Only email)
+  writeBS $ successResult "ok" [(name :: T.Text)]
+
 postAttend :: Handler App App ()
 postAttend = method POST $ do
   conn <- liftIO $ connect mysqlConnectInfo
@@ -183,6 +193,7 @@ routes = [ ("/hello", handleHello)
          , ("/logout", handleLogout)
          , ("/isLogin", handleIsLogin)
          , ("/getEmail", handleGetEmail)
+         , ("/getName", handleGetName)
          , ("/attend", handleAttend)
          , ("/attends", handleAttends)
          , ("", serveDirectory "static")
