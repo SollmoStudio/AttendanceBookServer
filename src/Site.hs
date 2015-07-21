@@ -169,7 +169,7 @@ getAttend = method GET $ do
   (Just email) <- with sess $ getFromSession "email"
   attendances <- liftIO $ query conn (
        "select user.email, attendanceTime, name from attendance.attendance, attendance.user WHERE " `mappend`
-       "  user.email=?"
+       "  user.email=? AND user.email=attendance.email"
      ) (Only email)
   results <- liftIO $ makeCorrectTimeZone $ foldMap fromSingle attendances
   writeBS $ successResult "ok" (map (\(_, _2, _) -> _2) results)
@@ -181,7 +181,8 @@ handleAttends :: Handler App App ()
 handleAttends = do
   conn <- liftIO $ connect mysqlConnectInfo
   attendances <- liftIO $ query_ conn (
-    "select user.email, attendanceTime, name from attendance.attendance, attendance.user"
+    "select user.email, attendanceTime, name from attendance.attendance, attendance.user WHERE" `mappend`
+    " attendance.email=user.email"
     )
   results <- liftIO $ makeCorrectTimeZone $ foldMap fromSingle attendances
   writeBS $ successResult "ok" results
