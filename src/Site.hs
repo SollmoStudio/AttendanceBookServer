@@ -44,11 +44,12 @@ handleMakeUser :: Handler App App ()
 handleMakeUser = method POST $ do
   email <- getParam "email"
   password <- getParam "password"
+  name <- getParam "name"
   conn <- liftIO $ connect mysqlConnectInfo
   liftIO $ execute conn (
     "INSERT  attendance.user SET " `mappend`
-    "  email=?, password=?"
-    ) (email, password)
+    "  email=?, password=?, name=?"
+    ) (email, password, name)
   writeBS $ successResult "ok" emptyArray
 
 validUser :: Handler App App Bool
@@ -116,6 +117,16 @@ handleGetEmail = checkLogin <|> do
   (Just email) <- with sess $ getFromSession "email"
   writeBS $ successResult "ok" [email]
 
+handleGetName :: Handler App App ()
+handleGetName = checkLogin <|> do
+  (Just email) <- with sess $ getFromSession "email"
+  conn <- liftIO $ connect mysqlConnectInfo
+  [Only name] <- liftIO $ query conn (
+    "SELECT name FROM attendance.user" `mappend`
+    " WHERE email=?"
+    ) (Only email)
+  writeBS $ successResult "ok" [(name :: T.Text)]
+
 postAttend :: Handler App App ()
 postAttend = method POST $ do
   conn <- liftIO $ connect mysqlConnectInfo
@@ -135,33 +146,33 @@ fixTimeZone (UTCTime day time) = (localTimeToUTC `fmap` currentTimeZone) <*> (re
 newtype TimeZoneRemovedTime = TimeZoneRemovedTime UTCTime
   deriving Show
 
-newtype AttendanceResult = AttendanceResult [(T.Text, TimeZoneRemovedTime)]
+newtype AttendanceResult = AttendanceResult [(T.Text, TimeZoneRemovedTime, T.Text)]
   deriving Show
 
-fromSingle :: (T.Text, UTCTime) -> AttendanceResult
-fromSingle (email, noTimeZoneTime) = AttendanceResult [(email, (TimeZoneRemovedTime noTimeZoneTime))]
+fromSingle :: (T.Text, UTCTime, T.Text) -> AttendanceResult
+fromSingle (email, noTimeZoneTime, name) = AttendanceResult [(email, (TimeZoneRemovedTime noTimeZoneTime), name)]
 
 instance Monoid AttendanceResult where
   mempty = AttendanceResult []
   mappend (AttendanceResult xs) (AttendanceResult ys) = AttendanceResult (xs `mappend` ys)
 
-makeCorrectTimeZone :: AttendanceResult -> IO [(T.Text, UTCTime)]
+makeCorrectTimeZone :: AttendanceResult -> IO [(T.Text, UTCTime, T.Text)]
 makeCorrectTimeZone (AttendanceResult rows) = mapM convert rows
   where
-    convert = \(email, TimeZoneRemovedTime time) -> do
+    convert = \(email, TimeZoneRemovedTime time, name) -> do
       validTime <- fixTimeZone time
-      return (email, validTime)
+      return (email, validTime, name)
 
 getAttend :: Handler App App ()
 getAttend = method GET $ do
   conn <- liftIO $ connect mysqlConnectInfo
   (Just email) <- with sess $ getFromSession "email"
   attendances <- liftIO $ query conn (
-       "select email, attendanceTime from attendance.attendance WHERE " `mappend`
-       "  email=?"
+       "select user.email, attendanceTime, name from attendance.attendance, attendance.user WHERE " `mappend`
+       "  user.email=?"
      ) (Only email)
   results <- liftIO $ makeCorrectTimeZone $ foldMap fromSingle attendances
-  writeBS $ successResult "ok" (map snd results)
+  writeBS $ successResult "ok" (map (\(_, _2, _) -> _2) results)
 
 handleAttend :: Handler App App ()
 handleAttend = checkLogin <|> (postAttend <|> getAttend)
@@ -170,7 +181,7 @@ handleAttends :: Handler App App ()
 handleAttends = do
   conn <- liftIO $ connect mysqlConnectInfo
   attendances <- liftIO $ query_ conn (
-    "select email, attendanceTime from attendance.attendance"
+    "select user.email, attendanceTime, name from attendance.attendance, attendance.user"
     )
   results <- liftIO $ makeCorrectTimeZone $ foldMap fromSingle attendances
   writeBS $ successResult "ok" results
@@ -182,6 +193,7 @@ routes = [ ("/hello", handleHello)
          , ("/logout", handleLogout)
          , ("/isLogin", handleIsLogin)
          , ("/getEmail", handleGetEmail)
+         , ("/getName", handleGetName)
          , ("/attend", handleAttend)
          , ("/attends", handleAttends)
          , ("", serveDirectory "static")
